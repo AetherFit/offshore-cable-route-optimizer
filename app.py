@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import folium
+from streamlit_folium import st_folium
 
 # Page Configuration
 st.set_page_config(page_title="UK Infrastructure & Energy GIS Explorer", layout="wide")
@@ -13,7 +14,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🗺️ UK Infrastructure & Renewable Energy GIS Explorer")
-st.markdown("<p style='color: #8B949E; font-size: 16px;'>Interactive spatial mapping and filtering of UK renewable assets, ports, and regional infrastructure.</p>", unsafe_allow_html=True)
+st.markdown("<p style='color: #8B949E; font-size: 16px;'>Interactive real map of UK renewable assets, ports, and regional infrastructure.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Open-source dataset representing real UK infrastructure nodes
@@ -48,34 +49,39 @@ col3.metric("Geographic Focus", "United Kingdom & South West")
 
 st.markdown("---")
 
-# Interactive Spatial Coordinate Map (Bulletproof on Cloud)
-st.subheader("📍 Live UK Spatial Map")
+# Actual Interactive Map Section
+st.subheader("📍 Live Interactive UK Map")
 
-# Fallback sizing if capacity is 0
-size_val = filtered_df["Capacity_MW"].apply(lambda x: 18 if x == 0 else max(10, x / 150))
+# Initialize Folium map centered on the UK with a dark sleek tile theme
+m = folium.Map(location=[54.5, -3.5], zoom_start=6, tiles="CartoDB dark_matter")
 
-fig = px.scatter(
-    filtered_df,
-    x="Lon",
-    y="Lat",
-    color="Type",
-    hover_name="Name",
-    size=size_val,
-    size_max=22,
-    template="plotly_dark",
-    hover_data=["Capacity_MW", "Details"],
-    labels={"Lon": "Longitude (East / West)", "Lat": "Latitude (North / South)"}
-)
+# Color mapping for pins based on asset type
+color_map = {
+    "Offshore Wind": "blue",
+    "Port & Logistics": "orange",
+    "Grid & Baseload": "purple"
+}
 
-fig.update_layout(
-    height=550,
-    margin=dict(l=20, r=20, t=30, b=20),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    xaxis=dict(showgrid=True, zeroline=False, gridcolor="#30363D"),
-    yaxis=dict(showgrid=True, zeroline=False, gridcolor="#30363D")
-)
+# Add markers dynamically from filtered data
+for idx, row in filtered_df.iterrows():
+    color = color_map.get(row["Type"], "red")
+    popup_html = f"""
+    <div style='font-family: sans-serif; color: #000; width: 200px;'>
+        <h4 style='margin:0; color:#0366d6;'>{row['Name']}</h4>
+        <p style='margin:5px 0;'><b>Category:</b> {row['Type']}</p>
+        <p style='margin:5px 0;'><b>Capacity:</b> {row['Capacity_MW']} MW</p>
+        <p style='margin:5px 0; font-size:11px;'>{row['Details']}</p>
+    </div>
+    """
+    folium.Marker(
+        location=[row["Lat"], row["Lon"]],
+        popup=folium.Popup(popup_html, max_width=250),
+        tooltip=row["Name"],
+        icon=folium.Icon(color=color, icon="info-sign", prefix='glyphicon')
+    ).add_to(m)
 
-st.plotly_chart(fig, use_container_width=True)
+# Render the map inside Streamlit
+st_folium(m, width=1200, height=550, use_container_width=True)
 
 st.markdown("---")
 
