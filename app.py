@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
+import plotly.express as px
 
-# Page Config
-st.set_page_config(page_title="WindFarm GIS | Layout & Logistics Planner", layout="wide")
+# Page Configuration
+st.set_page_config(page_title="UK Infrastructure & Energy GIS Explorer", layout="wide")
 
 st.markdown("""
     <style>
@@ -13,96 +12,73 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🗺️ WindFarm GIS: Spatial Layout & Marine Logistics Planner")
-st.markdown("<p style='color: #8B949E; font-size: 16px;'>Interactive offshore wind farm site arrangement, turbine spacing, and port-to-site transit modeling.</p>", unsafe_allow_html=True)
+st.title("🗺️ UK Infrastructure & Renewable Energy GIS Explorer")
+st.markdown("<p style='color: #8B949E; font-size: 16px;'>Interactive spatial mapping and filtering of UK renewable assets, ports, and regional infrastructure.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Sidebar Controls (Intuitive Project Management Inputs)
-st.sidebar.header("🏗️ Farm Layout Parameters")
-num_turbines = st.sidebar.slider("Number of Turbines", min_value=10, max_value=100, value=36, step=2)
-turbine_capacity_mw = st.sidebar.selectbox("Turbine Capacity", [10, 12, 15, 18], index=2) # MW per turbine
-port_distance_km = st.sidebar.slider("Distance from O&M Port (km)", min_value=10.0, max_value=90.0, value=35.0, step=5.0)
+# Open-source dataset representing real UK infrastructure nodes
+data = [
+    {"Name": "Avonmouth / Bristol Port Hub", "Lat": 51.4881, "Lon": -2.6917, "Type": "Port & Logistics", "Capacity_MW": 0, "Details": "Key regional import and fabrication hub for South West marine engineering."},
+    {"Name": "Hornsea One (Offshore Wind)", "Lat": 53.8833, "Lon": 1.7833, "Type": "Offshore Wind", "Capacity_MW": 1218, "Details": "One of the world's largest operational offshore wind farms."},
+    {"Name": "Dogger Bank Wind Farm", "Lat": 54.8000, "Lon": 2.0000, "Type": "Offshore Wind", "Capacity_MW": 3600, "Details": "Massive multi-phase utility-scale offshore wind development in the North Sea."},
+    {"Name": "Barrow Offshore Wind", "Lat": 54.0500, "Lon": -3.2667, "Type": "Offshore Wind", "Capacity_MW": 90, "Details": "Established UK Irish Sea offshore wind asset."},
+    {"Name": "Hinkley Point C (Nuclear)", "Lat": 51.2089, "Lon": -3.1292, "Type": "Grid & Baseload", "Capacity_MW": 3200, "Details": "Major low-carbon baseload nuclear construction project in Somerset."},
+    {"Name": "Greater Gabbard", "Lat": 52.1750, "Lon": 1.9333, "Type": "Offshore Wind", "Capacity_MW": 504, "Details": "Operational North Sea offshore wind installation."},
+    {"Name": "Port of Bristol Marine Terminal", "Lat": 51.4930, "Lon": -2.7100, "Type": "Port & Logistics", "Capacity_MW": 0, "Details": "Handling heavy cargo and supporting local industrial operations."},
+]
 
-st.sidebar.header("🌊 Foundation & Installation")
-foundation_type = st.sidebar.selectbox("Substructure Type", ["Monopile (Shallow/Mid Water)", "Jacket Structure (Deep Water)"])
-vessel_speed_knots = st.sidebar.slider("Installation Vessel Speed (knots)", min_value=8.0, max_value=20.0, value=12.0, step=1.0)
+df = pd.DataFrame(data)
 
-# Calculations
-total_capacity_gw = (num_turbines * turbine_capacity_mw) / 1000.0
-layout_grid_size = int(np.ceil(np.sqrt(num_turbines)))
+# Sidebar Filters
+st.sidebar.header("🔍 GIS Data Filters")
+selected_type = st.sidebar.selectbox("Filter Asset Category", ["All Categories", "Offshore Wind", "Port & Logistics", "Grid & Baseload"])
+min_capacity = st.sidebar.slider("Minimum Capacity (MW)", 0, 4000, 0, 100)
 
-# Generate simulated turbine grid coordinates centered around an Offshore Substation (OSS)
-np.random.seed(42)
-grid_x, grid_y = [], []
-for i in range(layout_grid_size):
-    for j in range(layout_grid_size):
-        if len(grid_x) < num_turbines:
-            grid_x.append(port_distance_km + 5 + (i * 1.5) + np.random.uniform(-0.2, 0.2))
-            grid_y.append(20 + (j * 1.5) + np.random.uniform(-0.2, 0.2))
-
-oss_x = port_distance_km + 2
-oss_y = 20 + (layout_grid_size * 0.75)
-
-# Logistics calculations
-install_days_per_turbine = 3.5 if "Monopile" in foundation_type else 5.0
-total_install_days = (num_turbines * install_days_per_turbine) / 2.0 # Assuming dual-vessel spread
+# Apply filters
+filtered_df = df.copy()
+if selected_type != "All Categories":
+    filtered_df = filtered_df[filtered_df["Type"] == selected_type]
+filtered_df = filtered_df[filtered_df["Capacity_MW"] >= min_capacity]
 
 # Top Metrics Bar
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Farm Capacity", f"{total_capacity_gw:.2f} GW", delta=f"{num_turbines} Turbines ({turbine_capacity_mw}MW)")
-col2.metric("Estimated Installation Window", f"{total_install_days:.0f} Days", delta=foundation_type)
-col3.metric("Port Transit Distance", f"{port_distance_km} km", delta="Direct Coastal Route")
-col4.metric("Layout Density", f"{layout_grid_size}x{layout_grid_size} Grid", delta="Optimized Array")
+col1, col2, col3 = st.columns(3)
+col1.metric("Visible Assets on Map", len(filtered_df))
+col2.metric("Total Filtered Capacity", f"{filtered_df['Capacity_MW'].sum():,} MW")
+col3.metric("Geographic Focus", "United Kingdom & South West")
 
 st.markdown("---")
 
-# Main Visual Interactive Map
-st.subheader("📍 Spatial Site Layout & Cable Array Map")
+# Interactive Map using Plotly Geo Scatter
+st.subheader("📍 Live UK Spatial Map")
 
-fig = go.Figure()
+fig = px.scatter_geo(
+    filtered_df,
+    lat="Lat",
+    lon="Lon",
+    color="Type",
+    hover_name="Name",
+    size="Capacity_MW" if filtered_df["Capacity_MW"].sum() > 0 else None,
+    size_max=18,
+    projection="natural earth",
+    template="plotly_dark",
+    hover_data=["Capacity_MW", "Details"]
+)
 
-# 1. Port Landing
-fig.add_trace(go.Scatter(
-    x=[0], y=[20],
-    mode='markers+text',
-    name='Onshore Port / O&M Base',
-    text=['Coastal Port Base'],
-    textposition='bottom center',
-    marker=dict(size=18, color='#D29922', symbol='square')
-))
-
-# 2. Export Cable Route from Port to Substation
-fig.add_trace(go.Scatter(
-    x=[0, oss_x], y=[20, oss_y],
-    mode='lines',
-    name='Export Cable Route',
-    line=dict(color='#3FB950', width=4, dash='dash')
-))
-
-# 3. Offshore Substation (OSS)
-fig.add_trace(go.Scatter(
-    x=[oss_x], y=[oss_y],
-    mode='markers+text',
-    name='Offshore Substation (OSS)',
-    text=['Offshore Substation'],
-    textposition='top center',
-    marker=dict(size=20, color='#8957E5', symbol='diamond')
-))
-
-# 4. Wind Turbine Array
-fig.add_trace(go.Scatter(
-    x=grid_x, y=grid_y,
-    mode='markers',
-    name='Wind Turbine Generators',
-    marker=dict(size=10, color='#58A6FF', symbol='circle')
-))
+# Center map specifically on the UK
+fig.update_geos(
+    center=dict(lat=54.5, lon=-3.5),
+    zoom=5.2,
+    showland=True,
+    landcolor="#161B22",
+    showocean=True,
+    oceancolor="#0E1117",
+    showcountries=True,
+    countrycolor="#30363D"
+)
 
 fig.update_layout(
-    template="plotly_dark",
-    height=500,
-    margin=dict(l=20, r=20, t=30, b=20),
-    xaxis_title="Easting Distance from Coast (km)",
-    yaxis_title="Northing Spatial Coordinate (km)",
+    height=550,
+    margin=dict(l=0, r=0, t=0, b=0),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
 
@@ -110,22 +86,6 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
-# Bottom Section: Project Management Summary
-st.subheader("📋 Executive Logistics & Site Overview")
-col_info1, col_info2 = st.columns(2)
-
-with col_info1:
-    st.markdown(f"""
-    **Site Logistics Summary:**
-    *   **Selected Foundation:** {foundation_type} (Requires heavy-lift installation vessel deployment)[cite: 4, 5].
-    *   **Array Configuration:** Arranged in an optimized grid pattern to minimize wake losses between turbines.
-    *   **Export Infrastructure:** Single primary export cable routing from the central Offshore Substation back to the coastal port grid connection point[cite: 4, 5].
-    """)
-
-with col_info2:
-    st.markdown(f"""
-    **Project Schedule & Risk Notes:**
-    *   **Vessel Mobilization:** Estimated operational fleet requirement of specialized installation vessels.
-    *   **Weather Contingency:** Built-in operational buffer included in the {total_install_days:.0f}-day installation timeline[cite: 5].
-    *   **HSE Compliance:** Aligned with standard offshore marine clearance and safety zone parameters[cite: 5].
-    """)
+# Bottom Section: Asset Table Directory
+st.subheader("📋 Infrastructure Asset Directory")
+st.dataframe(filtered_df[["Name", "Type", "Capacity_MW", "Details"]], use_container_width=True)
