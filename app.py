@@ -52,8 +52,8 @@ st.markdown("---")
 # Actual Interactive Map Section
 st.subheader("📍 Live Interactive UK Map")
 
-# Initialize Folium map centered on the UK with a dark sleek tile theme
-m = folium.Map(location=[54.5, -3.5], zoom_start=6, tiles="CartoDB dark_matter")
+# Using standard OpenStreetMap tiles (free, no API key required)
+m = folium.Map(location=[54.5, -3.5], zoom_start=6, tiles="OpenStreetMap")
 
 # Color mapping for pins based on asset type
 color_map = {
