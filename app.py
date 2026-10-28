@@ -48,38 +48,31 @@ col3.metric("Geographic Focus", "United Kingdom & South West")
 
 st.markdown("---")
 
-# Interactive Map using Plotly Geo Scatter
+# Interactive Spatial Coordinate Map (Bulletproof on Cloud)
 st.subheader("📍 Live UK Spatial Map")
 
-fig = px.scatter_geo(
+# Fallback sizing if capacity is 0
+size_val = filtered_df["Capacity_MW"].apply(lambda x: 18 if x == 0 else max(10, x / 150))
+
+fig = px.scatter(
     filtered_df,
-    lat="Lat",
-    lon="Lon",
+    x="Lon",
+    y="Lat",
     color="Type",
     hover_name="Name",
-    size="Capacity_MW" if filtered_df["Capacity_MW"].sum() > 0 else None,
-    size_max=18,
-    projection="natural earth",
+    size=size_val,
+    size_max=22,
     template="plotly_dark",
-    hover_data=["Capacity_MW", "Details"]
-)
-
-# Center map specifically on the UK
-fig.update_geos(
-    center=dict(lat=54.5, lon=-3.5),
-    zoom=5.2,
-    showland=True,
-    landcolor="#161B22",
-    showocean=True,
-    oceancolor="#0E1117",
-    showcountries=True,
-    countrycolor="#30363D"
+    hover_data=["Capacity_MW", "Details"],
+    labels={"Lon": "Longitude (East / West)", "Lat": "Latitude (North / South)"}
 )
 
 fig.update_layout(
     height=550,
-    margin=dict(l=0, r=0, t=0, b=0),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    margin=dict(l=20, r=20, t=30, b=20),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    xaxis=dict(showgrid=True, zeroline=False, gridcolor="#30363D"),
+    yaxis=dict(showgrid=True, zeroline=False, gridcolor="#30363D")
 )
 
 st.plotly_chart(fig, use_container_width=True)
